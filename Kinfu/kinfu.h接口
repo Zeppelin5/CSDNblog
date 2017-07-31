@@ -1,0 +1,155 @@
+PCL的Kinfu中文资料比较少，看开源代码的头文件是一个不错的入手点，所以总结了Kinfu.h的一些接口用法供参考。
+
+KinfuTracker类
+ 
+KinfuTracker (int rows = 480, int cols = 640);
+构造函数
+
+setDepthIntrinsics、getDepthIntrinsics：
+获取深度本来的信息x，y 焦距等信息
+
+setInitalCameraPose、getInitalCameraPose：
+快速初始化相机位置，并关联到体积坐标空间
+
+setDepthTruncationForICP(float max_icp_distance= 0.f)：
+为ICP阶段设置截断阈值，过滤测试
+
+setIcpCorespFilteringParams(float distThreshold,float sineOfAngle)
+设置ICP过滤参数
+
+setCameraMovementThreshold(float threshold =0.001f);
+整合阈值
+
+initColorIntegration(int max_weight = -1)
+颜色初始化
+
+bool operator() (const DepthMap& depth, Eigen::Affine3f* hint=NULL)
+到下一帧
+
+Eigen::Affine3f getCameraPose(int time = -1)const
+给定时刻的相机位置
+
+size_t getNumberOfPoses() const;
+返回位置的个数，包括初始的位置
+
+constTsdfVolume& volume() const;
+TSDF立方体
+
+constColorVolume& colorVolume() const;
+带颜色立方体   
+
+void getImage(View& view) const;
+渲出3D场景       
+
+void getLastFrameCloud(DeviceArray2D<PointType>& cloud) const;
+返回上一个相机位置的点云（重要）
+参数是点云数组
+
+void getLastFrameNormals(DeviceArray2D<NormalType>& normals) const;
+参数是法线
+
+void disableIcp();
+终止icp
+
+private:
+enum { LEVELS =3 };
+金字塔层级分为3级
+
+typedef DeviceArray2D<int> CorespMap;
+定义CorespMap为ICP对应点映射
+
+typedef DeviceArray2D<float> MapArr;
+定义MapArr为顶点和法线映射
+
+typedef Eigen::Matrix<float, 3, 3,Eigen::RowMajor> Matrix3frm;
+定义3×3矩阵Matrix3frm，按行存储
+
+typedef Eigen::Vector3f Vector3f;
+定义3维向量Vector3f
+
+int rows_;
+深度图形高对应rows
+
+int cols_;
+深度图像对应cols
+
+int global_time_;
+帧计数器
+
+float max_icp_distance_;
+深度图像的截取阈值
+
+float fx_, fy_,cx_, cy_;
+相机内参，f焦距，c离中心点距离
+
+TsdfVolume::Ptr tsdf_volume_;
+TSDF立方体容器
+
+ColorVolume::Ptr color_volume_;
+带颜色的立方体容器               
+
+Matrix3frm init_Rcam_;
+在立方体的坐标空间中初始化相机的旋转参数
+
+Vector3f init_tcam_;
+在立方体的坐标空间中初始化相机的位置参数
+
+int icp_iterations_[LEVELS];
+各个层级的ICP有不同的迭代次数
+
+float  distThres_;
+距离阈值，用于相关点过滤
+
+float angleThres_;
+角度阈值       
+
+std::vector<DepthMap> depths_curr_;
+深度层级       
+
+std::vector<MapArr> vmaps_g_curr_;
+在当前帧下，全局坐标空间的顶点信息
+
+std::vector<MapArr> nmaps_g_curr_;
+在当前帧下，全局坐标空间下的法线信息
+
+std::vector<MapArr> vmaps_g_prev_;
+前一帧下，全局坐标空间的顶点信息
+
+std::vector<MapArr> nmaps_g_prev_;
+前一帧下，全局坐标空间的法线信息
+
+std::vector<MapArr> vmaps_curr_;
+在当前帧下，当前坐标空间的顶点信息
+
+std::vector<MapArr> nmaps_curr_;
+在当前帧下，当前坐标空间的法线信息
+
+std::vector<CorespMap> coresps_;
+数组缓冲区，ICP对应的不同层级      
+
+DeviceArray2D<float>depthRawScaled_;
+ 缓冲存储扩展深度图像     
+
+DeviceArray2D<double>gbuf_;
+临时缓冲
+
+DeviceArray<double>sumbuf_;
+MLS矩阵
+
+std::vector<Matrix3frm> rmats_;
+每个时刻的相机旋转矩阵       
+
+std::vector<Vector3f> tvecs_;
+每个时刻的相机位置转移矩阵
+
+float integration_metric_threshold_;
+相机运动阈值
+
+bool disable_icp_;
+记录ICP是否完全终止       
+
+void allocateBufffers(int rows_arg, intcols_arg);
+分配所有GPU内部缓冲区
+
+void reset ();
+将追踪进程重置为初始状态，在相机追踪失败的时候调用
